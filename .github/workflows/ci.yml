@@ -1,0 +1,192 @@
+name: CI
+
+on:
+  # TODO re-enable once project is set up properly
+  # push:
+  #   branches:
+  #     - main
+  # pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  CI: 1
+
+jobs:
+  clippy:
+    name: Clippy validation
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install Rust with clippy
+        uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
+        with:
+          toolchain: stable
+          components: clippy
+          cache: false
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
+        with:
+          prefix-key: v2-rust
+          cache-on-failure: true
+
+      - name: Run clippy
+        uses: clechasseur/rs-clippy-check@69da786488ddcceb16285b0219841750089369ba # v5.0.1
+        with:
+          args: --workspace --all-targets --feature-powerset -- -D warnings
+          tool: cargo-hack
+          cache-key: v1-clippy
+
+  fmt:
+    name: Rustfmt check
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install Rust nightly with rustfmt
+        uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
+        with:
+          toolchain: nightly
+          components: rustfmt
+          cache: false
+
+      - name: Run Rustfmt
+        uses: clechasseur/rs-fmt-check@37e549d599544309c163b37650fe7cfee67390c4 # v3.0.0
+        with:
+          args: --all
+
+  msrv-check:
+    name: MSRV check on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-24.04, macos-14, windows-2022 ]
+        toolchain: [ 1.60.0 ] # TODO: change for your minimum supported Rust version
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install Rust nightly and ${{ matrix.toolchain }}
+        uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
+        with:
+          toolchain: nightly,${{ matrix.toolchain }}
+          cache: false
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
+        with:
+          prefix-key: v10-rust
+          key: msrv-pins-files-${{ hashFiles('**/msrv-pins.toml') }}
+          cache-on-failure: true
+
+      - name: Install required tools
+        uses: taiki-e/install-action@f355b1dcaf1a1c56ccead97cc540a259faf4bd5a # v2.62.20
+        with:
+          tool: just@1.40.0,cargo-hack@0.6.36,cargo-minimal-versions@0.1.30,cargo-msrv-prep@2.1.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run checks using cargo-minimal-versions
+        run: just toolchain=${{ matrix.toolchain }} check-minimal
+
+  build:
+    name: Build on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-24.04, macos-14, windows-2022 ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
+        with:
+          toolchain: stable
+          cache: false
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
+        with:
+          prefix-key: v4-rust
+          cache-on-failure: true
+
+      - name: Install required tools
+        uses: taiki-e/install-action@f355b1dcaf1a1c56ccead97cc540a259faf4bd5a # v2.62.20
+        with:
+          tool: just@1.40.0,cargo-hack@0.6.36
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run checks on feature powerset
+        run: just check-powerset
+
+      - name: Run tests
+        run: just test
+
+  llvm-cov:
+    name: Code coverage with llvm-cov
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install Rust nightly
+        uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
+        with:
+          toolchain: nightly
+          cache: false
+
+      - name: Install required tools
+        uses: taiki-e/install-action@f355b1dcaf1a1c56ccead97cc540a259faf4bd5a # v2.62.20
+        with:
+          tool: just@1.40.0,cargo-llvm-cov@0.6.16
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run cargo-llvm-cov
+        run: just llvm-cov
+
+      - name: Upload code coverage results to codecov.io
+        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: codecov.json
+          fail_ci_if_error: true
+
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: llvm-cov-code-coverage-report
+          path: |
+            codecov.json
+            target/llvm-cov/html/
+
+  doc:
+    name: Rustdoc check
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install Rust nightly
+        uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
+        with:
+          toolchain: nightly
+          cache: false
+
+      - name: Install just
+        uses: taiki-e/install-action@f355b1dcaf1a1c56ccead97cc540a259faf4bd5a # v2.62.20
+        with:
+          tool: just@1.40.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate doc using rustdoc
+        run: just doc
