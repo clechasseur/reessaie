@@ -1,0 +1,30 @@
+[package]
+name = "reessaie"
+version = "0.1.0"
+authors = [ "Charles Lechasseur <shiftingbeard@outlook.com>" ]
+edition = "2024"
+
+readme = "README.md"
+license = "MIT"
+
+homepage = "https://github.com/clechasseur/reessaie#readme"
+repository = "https://github.com/clechasseur/reessaie"
+documentation = "https://docs.rs/reessaie/"
+
+description = "Companion to reqwest_retry to use the Retry-After HTTP header if available"
+
+keywords = [ "http", "middleware", "retry", "reqwest" ]
+categories = [ "web-programming::http-client" ]
+
+include = [ "src/**/*", "tests/**/*", "LICENSE", "README.md" ]
+
+[package.metadata.docs.rs]
+all-features = true
+targets = [ "x86_64-unknown-linux-gnu" ]
+rustc-args = [ "--cfg", "docsrs" ]
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = [ "cfg(tarpaulin)", "cfg(tarpaulin_include)", "cfg(coverage)", "cfg(coverage_nightly)" ]
+
+[dependencies]
