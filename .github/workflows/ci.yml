@@ -1,11 +1,10 @@
 name: CI
 
 on:
-  # TODO re-enable once project is set up properly
-  # push:
-  #   branches:
-  #     - main
-  # pull_request:
+  push:
+    branches:
+      - main
+  pull_request:
   workflow_dispatch:
 
 env:
@@ -65,7 +64,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-24.04, macos-14, windows-2022 ]
-        toolchain: [ 1.60.0 ] # TODO: change for your minimum supported Rust version
+        toolchain: [ 1.88.0 ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code

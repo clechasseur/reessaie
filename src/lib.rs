@@ -8,3 +8,10 @@
 #![deny(rustdoc::private_intra_doc_links)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg, doc_cfg_hide))]
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
+pub mod policy;
+
+pub use policy::RetryAfterPolicy;
+pub use reqwest;
+pub use reqwest_middleware;
+pub use reqwest_retry;
