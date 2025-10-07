@@ -1,0 +1,3 @@
+[target.'cfg(target_os = "linux")'.dependencies]
+openssl = "0.10.72"
+openssl-macros = "0.1.1"
