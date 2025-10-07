@@ -3,8 +3,10 @@ use std::fmt;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, SystemTime};
+
 use chrono::DateTime;
 use tokio::task;
+
 use crate::reqwest::Response;
 use crate::reqwest_retry::{DefaultRetryableStrategy, Retryable, RetryableStrategy};
 
@@ -17,11 +19,7 @@ pub struct RetryAfterPolicyInner<P, S> {
 
 impl<P, S> RetryAfterPolicyInner<P, S> {
     pub fn new(inner_policy: P, inner_strategy: S) -> Arc<Self> {
-        Arc::new(Self {
-            inner_policy,
-            inner_strategy,
-            retry_at: RwLock::new(HashMap::new()),
-        })
+        Arc::new(Self { inner_policy, inner_strategy, retry_at: RwLock::new(HashMap::new()) })
     }
 }
 
@@ -52,7 +50,10 @@ impl Default for DefaultRetryableStrategyInner {
 }
 
 impl RetryableStrategy for DefaultRetryableStrategyInner {
-    fn handle(&self, res: &Result<Response, crate::reqwest_middleware::Error>) -> Option<Retryable> {
+    fn handle(
+        &self,
+        res: &Result<Response, crate::reqwest_middleware::Error>,
+    ) -> Option<Retryable> {
         self.0.handle(res)
     }
 }

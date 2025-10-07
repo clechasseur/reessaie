@@ -4,12 +4,16 @@ pub(crate) mod detail;
 
 use std::sync::Arc;
 use std::time::SystemTime;
+
 use tokio::task;
-use crate::policy::detail::{parse_retry_after, DefaultRetryableStrategyInner, RetryAfterPolicyInner};
-use crate::reqwest::header::RETRY_AFTER;
+
+use crate::policy::detail::{
+    DefaultRetryableStrategyInner, RetryAfterPolicyInner, parse_retry_after,
+};
 use crate::reqwest::Response;
-use crate::reqwest_retry::{RetryDecision, RetryPolicy, Retryable, RetryableStrategy};
+use crate::reqwest::header::RETRY_AFTER;
 use crate::reqwest_retry::policies::ExponentialBackoff;
+use crate::reqwest_retry::{RetryDecision, RetryPolicy, Retryable, RetryableStrategy};
 
 /// [`RetryPolicy`] that checks for the [`Retry-After`] HTTP header and uses its value to
 /// determine the time between retries. If not available, forwards the decision to another policy.
@@ -18,15 +22,14 @@ use crate::reqwest_retry::policies::ExponentialBackoff;
 ///
 /// [`Retry-After`]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Retry-After
 #[derive(Debug, Clone)]
-pub struct RetryAfterPolicy<P = ExponentialBackoff, S = DefaultRetryableStrategyInner>(Arc<RetryAfterPolicyInner<P, S>>);
+pub struct RetryAfterPolicy<P = ExponentialBackoff, S = DefaultRetryableStrategyInner>(
+    Arc<RetryAfterPolicyInner<P, S>>,
+);
 
 impl<P, S> RetryAfterPolicy<P, S> {
     /// _TODO_
     pub fn with_policy_and_strategy(inner_policy: P, inner_strategy: S) -> Self {
-        Self(RetryAfterPolicyInner::new(
-            inner_policy,
-            inner_strategy,
-        ))
+        Self(RetryAfterPolicyInner::new(inner_policy, inner_strategy))
     }
 
     pub(crate) fn get_retry_at(&self) -> Option<SystemTime> {
@@ -91,7 +94,10 @@ impl<P, S> RetryableStrategy for RetryAfterPolicy<P, S>
 where
     S: RetryableStrategy,
 {
-    fn handle(&self, res: &Result<Response, crate::reqwest_middleware::Error>) -> Option<Retryable> {
+    fn handle(
+        &self,
+        res: &Result<Response, crate::reqwest_middleware::Error>,
+    ) -> Option<Retryable> {
         let retryable = self.0.inner_strategy.handle(res);
 
         if let Some(Retryable::Transient) = retryable
@@ -114,8 +120,11 @@ where
     P: RetryPolicy,
 {
     fn should_retry(&self, request_start_time: SystemTime, n_past_retries: u32) -> RetryDecision {
-        let decision = self.0.inner_policy.should_retry(request_start_time, n_past_retries);
-        
+        let decision = self
+            .0
+            .inner_policy
+            .should_retry(request_start_time, n_past_retries);
+
         if let RetryDecision::Retry { execute_after: _ } = decision
             && let Some(retry_at) = self.get_retry_at()
         {
