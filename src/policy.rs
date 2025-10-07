@@ -91,7 +91,7 @@ impl<P, S> RetryableStrategy for RetryAfterPolicy<P, S>
 where
     S: RetryableStrategy,
 {
-    fn handle(&self, res: &Result<Response, reqwest_middleware::Error>) -> Option<Retryable> {
+    fn handle(&self, res: &Result<Response, crate::reqwest_middleware::Error>) -> Option<Retryable> {
         let retryable = self.0.inner_strategy.handle(res);
 
         if let Some(Retryable::Transient) = retryable

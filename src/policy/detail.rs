@@ -6,7 +6,6 @@ use std::time::{Duration, SystemTime};
 use chrono::DateTime;
 use tokio::task;
 use crate::reqwest::Response;
-use crate::reqwest_middleware::Error;
 use crate::reqwest_retry::{DefaultRetryableStrategy, Retryable, RetryableStrategy};
 
 #[derive(Debug)]
@@ -53,7 +52,7 @@ impl Default for DefaultRetryableStrategyInner {
 }
 
 impl RetryableStrategy for DefaultRetryableStrategyInner {
-    fn handle(&self, res: &Result<Response, Error>) -> Option<Retryable> {
+    fn handle(&self, res: &Result<Response, crate::reqwest_middleware::Error>) -> Option<Retryable> {
         self.0.handle(res)
     }
 }
