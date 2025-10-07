@@ -1,13 +1,12 @@
 name: Security audit
 
 on:
-  # TODO re-enable once project is set up properly
-  # push:
-  #   branches:
-  #     - main
-  # pull_request:
-  # schedule:
-  #   - cron: '0 0 * * *'
+  push:
+    branches:
+      - main
+  pull_request:
+  schedule:
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 jobs:

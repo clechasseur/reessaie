@@ -1,11 +1,10 @@
 name: CI
 
 on:
-  # TODO re-enable once project is set up properly
-  # push:
-  #   branches:
-  #     - main
-  # pull_request:
+  push:
+    branches:
+      - main
+  pull_request:
   workflow_dispatch:
 
 env:
