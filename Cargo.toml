@@ -29,9 +29,19 @@ level = "warn"
 check-cfg = [ "cfg(tarpaulin)", "cfg(tarpaulin_include)", "cfg(coverage)", "cfg(coverage_nightly)" ]
 
 [dependencies]
+async-trait = "0.1.89"
 chrono = "0.4.42"
+http = "1.3.1"
 reqwest = "0.12.23"
 # This version requirement for `reqwest-middleware` is the same as the one used by `reqwest-retry` (more or less).
 reqwest-middleware = ">=0.3.3, <0.5.0"
 reqwest-retry = "0.7.0"
 tokio = { version = "1.47.1", features = ["rt"] }
+
+[dev-dependencies]
+anyhow = "1.0.100"
+assert_matches = "1.5.0"
+mock_instant = "0.6.0"
+rstest = "0.26.1"
+tokio = { version = "1.47.1", features = ["macros"] }
+wiremock = "0.6.5"
