@@ -76,6 +76,7 @@ pub fn parse_retry_after(val: &str) -> Option<SystemTime> {
 
 //noinspection DuplicatedCode
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use anyhow::anyhow;
     use rstest::rstest;

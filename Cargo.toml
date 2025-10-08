@@ -40,6 +40,8 @@ tokio = { version = "1.47.1", features = ["rt"] }
 
 [dev-dependencies]
 anyhow = "1.0.100"
+assert_matches = "1.5.0"
 mock_instant = "0.6.0"
 rstest = "0.26.1"
 tokio = { version = "1.47.1", features = ["macros"] }
+wiremock = "0.6.5"
