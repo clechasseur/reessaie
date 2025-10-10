@@ -6,4 +6,48 @@ Companion library to [`reqwest-retry`](https://crates.io/crates/reqwest-retry) w
 
 Partially inspired by [`reqwest-retry-after`](https://crates.io/crates/reqwest-retry-after).
 
-_In progress_
+## Installing
+
+Add `reessaie` to your dependencies:
+
+```toml
+[dependencies]
+reessaie = "1.0.0"
+```
+
+or by running:
+
+```shell
+cargo add reesaie
+```
+
+## Example
+
+```rust
+use anyhow::Context;
+use reessaie::{RetryAfterMiddleware, RetryAfterPolicy};
+use reqwest::Client;
+use reqwest_middleware::ClientBuilder;
+
+async fn get_with_retries(url: &str, max_retries: u32) -> Result<String, anyhow::Error> {
+    let policy = RetryAfterPolicy::with_max_retries(max_retries);
+    let client = ClientBuilder::new(Client::new())
+        .with(RetryAfterMiddleware::new_with_policy(policy))
+        .build();
+
+    Ok(client
+        .get(url)
+        .send()
+        .await
+        .with_context(|| format!("error getting {url}"))?
+        .text()
+        .await
+        .with_context(|| format!("error getting text for {url}"))?)
+}
+```
+
+For more information, see [the docs](https://docs.rs/reessaie).
+
+## Minimum Rust version
+
+`reessaie` currently builds on Rust 1.88 or newer.
