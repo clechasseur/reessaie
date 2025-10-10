@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::fmt;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
@@ -11,9 +10,6 @@ use chrono::DateTime;
 use mock_instant::thread_local::SystemTime;
 use tokio::task;
 
-use crate::reqwest::Response;
-use crate::reqwest_retry::{DefaultRetryableStrategy, Retryable, RetryableStrategy};
-
 #[derive(Debug)]
 pub struct RetryAfterPolicyInner<P, S> {
     pub inner_policy: P,
@@ -24,35 +20,6 @@ pub struct RetryAfterPolicyInner<P, S> {
 impl<P, S> RetryAfterPolicyInner<P, S> {
     pub fn new(inner_policy: P, inner_strategy: S) -> Arc<Self> {
         Arc::new(Self { inner_policy, inner_strategy, retry_at: RwLock::new(HashMap::new()) })
-    }
-}
-
-pub struct DefaultRetryableStrategyInner(DefaultRetryableStrategy);
-
-impl Debug for DefaultRetryableStrategyInner {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("DefaultRetryableStrategyInner").finish()
-    }
-}
-
-impl Clone for DefaultRetryableStrategyInner {
-    fn clone(&self) -> Self {
-        Self::default()
-    }
-}
-
-impl Default for DefaultRetryableStrategyInner {
-    fn default() -> Self {
-        Self(DefaultRetryableStrategy)
-    }
-}
-
-impl RetryableStrategy for DefaultRetryableStrategyInner {
-    fn handle(
-        &self,
-        res: &Result<Response, crate::reqwest_middleware::Error>,
-    ) -> Option<Retryable> {
-        self.0.handle(res)
     }
 }
 
@@ -78,107 +45,9 @@ pub fn parse_retry_after(val: &str) -> Option<SystemTime> {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
-    use anyhow::anyhow;
     use rstest::rstest;
 
     use super::*;
-    use crate::http::StatusCode;
-
-    mod default_retry_strategy_inner {
-        use super::*;
-
-        mod impl_debug {
-            use super::*;
-
-            #[test]
-            fn not_empty() {
-                let strategy = DefaultRetryableStrategyInner::default();
-                let debug = format!("{strategy:?}");
-                assert!(!debug.is_empty());
-            }
-        }
-
-        mod impl_clone {
-            use super::*;
-
-            #[test]
-            fn all() {
-                let strategy = DefaultRetryableStrategyInner::default();
-                let strategy = strategy.clone();
-                let response: Response = http::Response::builder()
-                    .status(StatusCode::TOO_MANY_REQUESTS)
-                    .body("")
-                    .unwrap()
-                    .into();
-
-                let actual = strategy.handle(&Ok(response));
-                assert!(actual.is_some_and(|retryable| retryable == Retryable::Transient));
-            }
-        }
-
-        mod impl_retryable_strategy {
-            use super::*;
-
-            #[rstest]
-            #[case::ok(
-                {
-                    let response: Response = http::Response::builder()
-                        .status(StatusCode::OK)
-                        .body("")
-                        .unwrap()
-                        .into();
-                    Ok(response)
-                },
-                None,
-            )]
-            #[case::bad_request(
-                {
-                    let response: Response = http::Response::builder()
-                        .status(StatusCode::BAD_REQUEST)
-                        .body("")
-                        .unwrap()
-                        .into();
-                    Ok(response)
-                },
-                Some(Retryable::Fatal),
-            )]
-            #[case::too_many_requests(
-                {
-                    let response: Response = http::Response::builder()
-                        .status(StatusCode::TOO_MANY_REQUESTS)
-                        .body("")
-                        .unwrap()
-                        .into();
-                    Ok(response)
-                },
-                Some(Retryable::Transient),
-            )]
-            #[case::internal_server_error(
-                {
-                    let response: Response = http::Response::builder()
-                        .status(StatusCode::TOO_MANY_REQUESTS)
-                        .body("")
-                        .unwrap()
-                        .into();
-                    Ok(response)
-                },
-                Some(Retryable::Transient),
-            )]
-            #[case::middleware_error(
-                Err(crate::reqwest_middleware::Error::Middleware(anyhow!("middleware error"))),
-                Some(Retryable::Fatal),
-            )]
-            fn with(
-                #[case] res: Result<Response, crate::reqwest_middleware::Error>,
-                #[case] expected: Option<Retryable>,
-            ) {
-                let strategy = DefaultRetryableStrategyInner::default();
-                let actual = strategy.handle(&res);
-                // `Retryable` doesn't implement Debug so we can't use `assert_eq!`
-                assert!(expected == actual);
-            }
-        }
-    }
 
     mod parse_retry_after {
         use super::*;

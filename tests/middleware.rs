@@ -3,13 +3,12 @@ mod retry_after_middleware {
     use std::time::{Duration, SystemTime};
 
     use assert_matches::assert_matches;
-    use reessaie::RetryAfterPolicy;
-    use reessaie::http::{Method, StatusCode};
-    use reessaie::middleware::RetryAfterMiddleware;
-    use reessaie::reqwest::Client;
-    use reessaie::reqwest_middleware::ClientBuilder;
-    use reessaie::reqwest_retry::Jitter;
-    use reessaie::reqwest_retry::policies::ExponentialBackoff;
+    use http::{Method, StatusCode};
+    use reessaie::{RetryAfterMiddleware, RetryAfterPolicy};
+    use reqwest::Client;
+    use reqwest_middleware::ClientBuilder;
+    use reqwest_retry::Jitter;
+    use reqwest_retry::policies::ExponentialBackoff;
     use rstest::rstest;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
@@ -49,19 +48,19 @@ mod retry_after_middleware {
 
     #[rstest]
     #[case::no_throttling(0, ResponseTemplate::new(StatusCode::OK), StatusCode::OK, Duration::ZERO)]
-    #[case::throttled_once_without_retry_after_header(
+    #[case::one_throttling_without_retry_after_header(
         1,
         ResponseTemplate::new(StatusCode::TOO_MANY_REQUESTS),
         StatusCode::OK,
         Duration::from_millis(500)
     )]
-    #[case::throttled_once_with_retry_after_header(
+    #[case::one_throttling_with_retry_after_header(
         1,
         ResponseTemplate::new(StatusCode::TOO_MANY_REQUESTS).append_header("Retry-After", "1"),
         StatusCode::OK,
         Duration::from_secs(1),
     )]
-    #[case::throttled_too_many_times(
+    #[case::too_many_throttlings(
         2,
         ResponseTemplate::new(StatusCode::TOO_MANY_REQUESTS),
         StatusCode::TOO_MANY_REQUESTS,
