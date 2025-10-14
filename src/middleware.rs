@@ -2,14 +2,14 @@
 
 use async_trait::async_trait;
 use http::Extensions;
-use reqwest::{Request, Response};
-use reqwest_middleware::{Middleware, Next};
-use reqwest_retry::policies::ExponentialBackoff;
-use reqwest_retry::{
-    DefaultRetryableStrategy, RetryPolicy, RetryTransientMiddleware, RetryableStrategy,
-};
 
 use crate::RetryAfterPolicy;
+use crate::reqwest::{Request, Response};
+use crate::reqwest_middleware::{Middleware, Next};
+use crate::reqwest_retry::policies::ExponentialBackoff;
+use crate::reqwest_retry::{
+    DefaultRetryableStrategy, RetryPolicy, RetryTransientMiddleware, RetryableStrategy,
+};
 
 /// Middleware wrapping a [`RetryTransientMiddleware`] to allow easier use of [`RetryAfterPolicy`].
 ///
@@ -44,6 +44,7 @@ where
     /// Creates a [`RetryAfterMiddleware`] wrapping the given [`RetryAfterPolicy`].
     ///
     /// See [struct documentation](RetryAfterMiddleware) for usage details.
+    #[cfg_attr(not(coverage), tracing::instrument(skip_all, level = "trace"))]
     pub fn new_with_policy(policy: RetryAfterPolicy<P, S>) -> Self {
         Self(RetryTransientMiddleware::new_with_policy_and_strategy(policy.clone(), policy.clone()))
     }
@@ -54,6 +55,7 @@ impl<P, S> Middleware for RetryAfterMiddleware<P, S>
 where
     RetryAfterPolicy<P, S>: RetryPolicy + RetryableStrategy + Send + Sync + 'static,
 {
+    #[cfg_attr(not(coverage), tracing::instrument(skip(self, next), ret, err))]
     async fn handle(
         &self,
         req: Request,
