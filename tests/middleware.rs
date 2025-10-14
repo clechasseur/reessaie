@@ -10,6 +10,7 @@ mod retry_after_middleware {
     use reqwest_retry::Jitter;
     use reqwest_retry::policies::ExponentialBackoff;
     use rstest::rstest;
+    use tracing_test::traced_test;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
 
@@ -67,6 +68,7 @@ mod retry_after_middleware {
         Duration::from_millis(500)
     )]
     #[tokio::test]
+    #[traced_test]
     async fn with(
         #[case] throttled_count: u64,
         #[case] throttling_response: ResponseTemplate,

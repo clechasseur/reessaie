@@ -10,6 +10,8 @@ use chrono::DateTime;
 use mock_instant::thread_local::SystemTime;
 use tokio::task;
 
+use crate::reqwest_retry::Retryable;
+
 #[derive(Debug)]
 pub struct RetryAfterPolicyInner<P, S> {
     pub inner_policy: P,
@@ -39,6 +41,17 @@ pub fn parse_retry_after(val: &str) -> Option<SystemTime> {
         return Some(date.into());
     }
     None
+}
+
+/// Returns a string representation of a [`Retryable`] value.
+///
+/// This is required because [`Retryable`] implements neither `Debug` nor `Display`.
+#[cfg_attr(coverage_nightly, coverage(off))]
+pub fn retryable_str(retryable: &Retryable) -> &'static str {
+    match retryable {
+        Retryable::Transient => "Retryable::Transient",
+        Retryable::Fatal => "Retryable::Fatal",
+    }
 }
 
 //noinspection DuplicatedCode
