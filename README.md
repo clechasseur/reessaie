@@ -12,7 +12,7 @@ Add `reessaie` to your dependencies:
 
 ```toml
 [dependencies]
-reessaie = "1.1.0"
+reessaie = "2.0.0"
 ```
 
 or by running:
