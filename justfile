@@ -42,6 +42,7 @@ force_prep_flag := if force_prep == "true" { "--force" } else { "" }
 just := "just all_features=" + all_features + " all_targets=" + all_targets + " message_format=" + message_format + " target_tuple=" + target_tuple + " release=" + release + " workspace=" + workspace + " package=" + package + " warnings_as_errors=" + warnings_as_errors + " force_prep=" + force_prep
 
 rustdoc_extra_flags := if toolchain == "nightly" { "--cfg docsrs" } else { "" }
+minimal_check_extra_flags := "--direct"
 
 skip_test_reqs_value := "running"
 
@@ -136,7 +137,7 @@ minimize:
 check-minimal: prep _check-minimal-only && unprep
 
 _check-minimal-only: (_rimraf "target/check-minimal-target")
-    {{cargo}} minimal-versions check --target-dir target/check-minimal-target {{package_flag}} --lib --bins {{all_features_flag}} {{message_format_flag}}
+    {{cargo}} minimal-versions check --target-dir target/check-minimal-target {{package_flag}} --lib --bins {{all_features_flag}} {{message_format_flag}} {{minimal_check_extra_flags}}
 
 # Run `cargo msrv` with `cargo minimal-versions check`
 msrv: (prep "--manifest-backup-suffix .msrv-prep.outer.bak") && (unprep "--manifest-backup-suffix .msrv-prep.outer.bak")
