@@ -4,7 +4,7 @@ toolchain := ""
 tool := "cargo"
 
 cargo := tool + (if toolchain != "" { " +" + toolchain } else { "" })
-cargo_nightly := cargo + " +nightly"
+cargo_nightly := tool + " +nightly"
 cargo_hack := cargo + " hack"
 cargo_tarpaulin := cargo + " tarpaulin"
 cargo_llvm_cov := cargo_nightly + " llvm-cov"
@@ -39,7 +39,13 @@ clippy_flags := if warnings_as_errors == "true" { "-- -D warnings" } else { "" }
 force_prep := "false"
 force_prep_flag := if force_prep == "true" { "--force" } else { "" }
 
-just := "just all_features=" + all_features + " all_targets=" + all_targets + " message_format=" + message_format + " target_tuple=" + target_tuple + " release=" + release + " workspace=" + workspace + " package=" + package + " warnings_as_errors=" + warnings_as_errors + " force_prep=" + force_prep
+open := if env("CI", "") == "" { "true" } else { "false" }
+open_flag := if open == "true" { "--open" } else { "" }
+
+no_deps := if toolchain == "nightly" { "true" } else { "false" }
+no_deps_flag := if no_deps == "true" { "--no-deps" } else { "" }
+
+just := "just all_features=" + all_features + " all_targets=" + all_targets + " message_format=" + message_format + " target_tuple=" + target_tuple + " release=" + release + " workspace=" + workspace + " package=" + package + " warnings_as_errors=" + warnings_as_errors + " force_prep=" + force_prep + " open=" + open + " no_deps=" + no_deps
 
 rustdoc_extra_flags := if toolchain == "nightly" { "--cfg docsrs" } else { "" }
 minimal_check_extra_flags := "--direct"
@@ -102,7 +108,7 @@ update *extra_args:
 
 # Run `cargo tarpaulin` to produce code coverage
 @tarpaulin *extra_args: (_run-tests cargo_tarpaulin "--target-dir target/tarpaulin-target" extra_args)
-    {{ if env('CI', '') == '' { "just _open-tarpaulin" } else { "" } }}
+    {{ if open == "true" { "just _open-tarpaulin" } else { "" } }}
 
 [unix]
 @_open-tarpaulin:
@@ -120,7 +126,7 @@ update *extra_args:
 doc: _doc
 
 _doc $RUSTDOCFLAGS=("-D warnings " + rustdoc_extra_flags):
-    {{cargo}} doc {{ if env('CI', '') == '' { '--open' } else { '' } }} {{ if toolchain == 'nightly' { '--no-deps' } else { '' } }} {{package_flag}} {{all_features_flag}} {{message_format_flag}}
+    {{cargo}} doc {{open_flag}} {{no_deps_flag}} {{package_flag}} {{all_features_flag}} {{message_format_flag}}
 
 # Check doc coverage with Nightly rustdoc
 doc-coverage: _doc-coverage
@@ -155,11 +161,11 @@ test-package *extra_args:
 
 # Run `cargo msrv-prep`
 prep *extra_args:
-    {{cargo}} msrv-prep {{package_flag}} --backup-root-manifest {{force_prep_flag}} {{extra_args}}
+    {{cargo_nightly}} msrv-prep {{package_flag}} --backup-root-manifest {{force_prep_flag}} {{extra_args}}
 
 # Run `cargo msrv-unprep`
 unprep *extra_args:
-    {{cargo}} msrv-unprep {{package_flag}} --backup-root-manifest {{extra_args}}
+    {{cargo_nightly}} msrv-unprep {{package_flag}} --backup-root-manifest {{extra_args}}
 
 # ----- Utilities -----
 
