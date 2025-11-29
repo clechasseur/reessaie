@@ -2,10 +2,11 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 2.x.y   | ✅                 |
-| 1.x.y   | ✅                 |
+| Version | Supported |
+|---------|-----------|
+| 3.x.y   | ✅         |
+| 2.x.y   | ✅         |
+| 1.x.y   | ❌         |
 
 ## Reporting a Vulnerability
 
