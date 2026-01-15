@@ -30,7 +30,7 @@ check-cfg = [ "cfg(tarpaulin)", "cfg(tarpaulin_include)", "cfg(coverage)", "cfg(
 
 [dependencies]
 async-trait = "0.1.89"
-chrono = "0.4.42"
+chrono = "0.4.43"
 http = "1.4.0"
 reqwest = "0.12.28"
 reqwest-middleware = "0.4.2"
