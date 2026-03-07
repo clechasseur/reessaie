@@ -48,7 +48,7 @@ use crate::reqwest_retry::{
 /// using the [`tokio`] runtime (through [`try_id`]).
 ///
 /// This policy can still be used outside a Tokio task, but if more than one request are performed
-/// concurrently outside of Tokio tasks, their `Retry-After` header values might get mixed up.
+/// concurrently outside Tokio tasks, their `Retry-After` header values might get mixed up.
 ///
 /// [`Retry-After`]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Retry-After
 /// [`RetryTransientMiddleware`]: reqwest_retry::RetryTransientMiddleware
