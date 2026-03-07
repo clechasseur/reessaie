@@ -120,7 +120,7 @@ update *extra_args:
 
 # Run `cargo llvm-cov` to produce code coverage
 @llvm-cov *extra_args: (_run-tests cargo_llvm_cov "--codecov --output-path codecov.json" package_flag all_targets_flag all_features_flag target_tuple_flag extra_args)
-    {{cargo_llvm_cov}} report --html {{ if env('CI', '') == '' { '--open' } else { '' } }}
+    {{cargo_llvm_cov}} report --html {{open_flag}}
 
 # Generate documentation with rustdoc
 doc: _doc
