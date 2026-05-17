@@ -32,7 +32,7 @@ check-cfg = [ "cfg(tarpaulin)", "cfg(tarpaulin_include)", "cfg(coverage)", "cfg(
 async-trait = "0.1.89"
 chrono = "0.4.44"
 http = "1.4.0"
-reqwest = "0.13.2"
+reqwest = "0.13.3"
 reqwest-middleware = "0.5.1"
 reqwest-retry = "0.9.1"
 tokio = { version = "1.52.1", features = ["rt"] }
