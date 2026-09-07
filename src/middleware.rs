@@ -2,7 +2,7 @@
 
 use async_trait::async_trait;
 use http::Extensions;
-
+use tracing::{info, trace};
 use crate::RetryAfterPolicy;
 use crate::reqwest::{Request, Response};
 use crate::reqwest_middleware::{Middleware, Next};
@@ -44,7 +44,6 @@ where
     /// Creates a [`RetryAfterMiddleware`] wrapping the given [`RetryAfterPolicy`].
     ///
     /// See [struct documentation](RetryAfterMiddleware) for usage details.
-    #[cfg_attr(not(coverage), tracing::instrument(skip_all, level = "trace"))]
     pub fn new_with_policy(policy: RetryAfterPolicy<P, S>) -> Self {
         Self(RetryTransientMiddleware::new_with_policy_and_strategy(policy.clone(), policy.clone()))
     }
@@ -55,13 +54,20 @@ impl<P, S> Middleware for RetryAfterMiddleware<P, S>
 where
     RetryAfterPolicy<P, S>: RetryPolicy + RetryableStrategy + Send + Sync + 'static,
 {
-    #[cfg_attr(not(coverage), tracing::instrument(skip(self, next), ret, err))]
+    #[cfg_attr(not(coverage), tracing::instrument(
+        skip_all,
+        fields(method = %req.method(), url = %req.url()),
+        ret,
+        err
+    ))]
     async fn handle(
         &self,
         req: Request,
         extensions: &mut Extensions,
         next: Next<'_>,
     ) -> reqwest_middleware::Result<Response> {
+        info!(?req, ?extensions);
+
         self.0.handle(req, extensions, next).await
     }
 }
