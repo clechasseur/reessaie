@@ -10,8 +10,9 @@ use std::time::SystemTime;
 use mock_instant::thread_local::SystemTime;
 use tokio::task;
 use tracing::{debug, info, trace};
+
 use crate::header::RetryAfterHeaderValue;
-use crate::policy::detail::{retryable_str, RetryAfterPolicyInner};
+use crate::policy::detail::{RetryAfterPolicyInner, retryable_str};
 use crate::reqwest::Response;
 use crate::reqwest_retry::policies::ExponentialBackoff;
 use crate::reqwest_retry::{
@@ -256,14 +257,14 @@ mod tests {
     use std::time::Duration;
 
     use anyhow::anyhow;
-    use crate::http::StatusCode;
-    use crate::http::header::RETRY_AFTER;
     use reqwest_retry::Jitter;
     use rstest::rstest;
     use tokio::task::spawn_blocking;
     use tracing_test::traced_test;
 
     use super::*;
+    use crate::http::StatusCode;
+    use crate::http::header::RETRY_AFTER;
 
     mod retry_after_policy {
         use super::*;
@@ -293,12 +294,11 @@ mod tests {
                 ExponentialBackoff::builder().build_with_max_retries(5),
             )
         )]
-        #[case::with_max_retries_and_strategy(
-            RetryAfterPolicy::with_max_retries_and_strategy(5, DefaultRetryableStrategy)
-        )]
-        #[case::with_max_retries(
-            RetryAfterPolicy::with_max_retries(5)
-        )]
+        #[case::with_max_retries_and_strategy(RetryAfterPolicy::with_max_retries_and_strategy(
+            5,
+            DefaultRetryableStrategy
+        ))]
+        #[case::with_max_retries(RetryAfterPolicy::with_max_retries(5))]
         #[case::default(
             RetryAfterPolicy::<UselessPolicy, UselessPolicy>::default()
         )]
