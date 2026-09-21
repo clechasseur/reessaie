@@ -119,15 +119,15 @@ impl RetryAfterHeaderValue {
 /// [`reqwest-retry-after`]: https://crates.io/crates/reqwest-retry-after
 /// [here]: https://github.com/melotic/reqwest-retry-after/blob/d80bf48b434a70998191ad01d06d58e77b931b2f/src/lib.rs#L56-L64
 pub fn parse_retry_after_header(val: &HeaderValue) -> Option<RetryAfterHeaderValue> {
-    val.to_str().ok().and_then(|val| match val {
-        val if let Ok(secs) = val.parse::<u64>() => {
-            Some(RetryAfterHeaderValue::SleepTime(Duration::from_secs(secs)))
-        },
-        val if let Ok(date) = DateTime::parse_from_rfc2822(val) => {
-            Some(RetryAfterHeaderValue::Timestamp(date.to_utc()))
-        },
-        _ => None,
-    })
+    let val = val.to_str().ok()?;
+
+    if let Ok(secs) = val.parse::<u64>() {
+        return Some(RetryAfterHeaderValue::SleepTime(Duration::from_secs(secs)));
+    }
+
+    DateTime::parse_from_rfc2822(val)
+        .map(|date| RetryAfterHeaderValue::Timestamp(date.to_utc()))
+        .ok()
 }
 
 /// Parses the content of a [`X-RateLimit-Reset`] HTTP header.
@@ -139,15 +139,17 @@ pub fn parse_x_rate_limit_reset_header(val: &HeaderValue) -> Option<RetryAfterHe
     // there is no standardized way to knowing which it is.
     // We'll use this heuristic: if server is telling us to wait for at least one day,
     // we'll assume it's a Unix timestamp.
-    val.to_str().ok().and_then(|val| match val.parse::<i64>() {
-        Ok(val) if val >= 0 && (val as u64) >= Duration::from_secs(24 * 60 * 60).as_secs() => {
-            DateTime::from_timestamp(val, 0).map(RetryAfterHeaderValue::Timestamp)
-        },
-        Ok(val) if val >= 0 => {
-            Some(RetryAfterHeaderValue::SleepTime(Duration::from_secs(val as u64)))
-        },
-        _ => None,
-    })
+    val.to_str()
+        .ok()
+        .and_then(|val| val.parse::<i64>().ok())
+        .filter(|val| *val >= 0)
+        .and_then(|val| {
+            if (val as u64) >= Duration::from_secs(24 * 60 * 60).as_secs() {
+                DateTime::from_timestamp(val, 0).map(RetryAfterHeaderValue::Timestamp)
+            } else {
+                Some(RetryAfterHeaderValue::SleepTime(Duration::from_secs(val as u64)))
+            }
+        })
 }
 
 #[cfg(test)]

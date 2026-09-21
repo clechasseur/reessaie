@@ -1,10 +1,10 @@
 //! Middleware implementations
 
 use async_trait::async_trait;
-use http::Extensions;
 use tracing::info;
 
 use crate::RetryAfterPolicy;
+use crate::http::Extensions;
 use crate::reqwest::{Request, Response};
 use crate::reqwest_middleware::{Middleware, Next};
 use crate::reqwest_retry::policies::ExponentialBackoff;
