@@ -9,29 +9,30 @@ use std::time::SystemTime;
 #[cfg(test)]
 use mock_instant::thread_local::SystemTime;
 use tokio::task;
-use tracing::{debug, info};
+use tracing::{debug, info, trace};
 
-use crate::policy::detail::{RetryAfterPolicyInner, parse_retry_after, retryable_str};
+use crate::header::RetryAfterHeaderValue;
+use crate::policy::detail::{RetryAfterPolicyInner, retryable_str};
 use crate::reqwest::Response;
-use crate::reqwest::header::RETRY_AFTER;
 use crate::reqwest_retry::policies::ExponentialBackoff;
 use crate::reqwest_retry::{
     DefaultRetryableStrategy, RetryDecision, RetryPolicy, Retryable, RetryableStrategy,
 };
 
-/// [`RetryPolicy`] that checks for the [`Retry-After`] HTTP header and uses its value to
-/// determine the time between retries.
+/// [`RetryPolicy`] that checks for HTTP headers indicating when to retry a request and uses
+/// their values to determine the time between retries.
 ///
 /// # Goal
 ///
 /// This retry policy is designed to be used with the helpers from the [`reqwest_retry`] crate. When
-/// a request needs to be retried, this policy will look for a [`Retry-After`] HTTP header in the
-/// response and if found, will use that value to determine when to retry.
+/// a request needs to be retried, this policy will look for an HTTP header indicating when to retry
+/// in the response and if found, will use its value. Such headers include the standard
+/// [`RETRY_AFTER`] as well as [`X_RATELIMIT_RESET`].
 ///
 /// Because of the way that [`RetryTransientMiddleware`] is designed, this policy implements _both_
 /// [`RetryPolicy`] and [`RetryableStrategy`]. The decision on whether to retry a request, or how
 /// many times to do so, is delegated to another combo of [`RetryPolicy`] / [`RetryableStrategy`].
-/// The only thing this policy changes is that _if_ a request is retried _and_ a valid [`Retry-After`]
+/// The only thing this policy changes is that _if_ a request is retried _and_ a valid retry-after
 /// HTTP header is present in the response, _then_ the value of that header is used to determine
 /// how long to wait before retrying; otherwise, the wait time determined by the inner policy is used.
 ///
@@ -48,9 +49,10 @@ use crate::reqwest_retry::{
 /// using the [`tokio`] runtime (through [`try_id`]).
 ///
 /// This policy can still be used outside a Tokio task, but if more than one request are performed
-/// concurrently outside Tokio tasks, their `Retry-After` header values might get mixed up.
+/// concurrently outside Tokio tasks, their retry-after header values might get mixed up.
 ///
-/// [`Retry-After`]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Retry-After
+/// [`RETRY_AFTER`]: crate::http::header::RETRY_AFTER
+/// [`X_RATELIMIT_RESET`]: crate::header::X_RATELIMIT_RESET
 /// [`RetryTransientMiddleware`]: reqwest_retry::RetryTransientMiddleware
 /// [`RetryAfterMiddleware`]: crate::RetryAfterMiddleware
 /// [`try_id`]: task::try_id
@@ -75,12 +77,11 @@ impl<P, S> RetryAfterPolicy<P, S> {
     ///     DefaultRetryableStrategy,
     /// );
     /// ```
-    #[cfg_attr(not(coverage), tracing::instrument(skip_all, level = "trace"))]
     pub fn with_policy_and_strategy(inner_policy: P, inner_strategy: S) -> Self {
         Self(RetryAfterPolicyInner::new(inner_policy, inner_strategy))
     }
 
-    #[cfg_attr(not(coverage), tracing::instrument(skip(self), fields(task_id = ?task::try_id()), level = "trace", ret))]
+    #[cfg_attr(not(coverage), tracing::instrument(skip_all, fields(task_id = ?task::try_id()), level = "trace", ret))]
     pub(crate) fn get_retry_at(&self) -> Option<SystemTime> {
         self.0
             .retry_at
@@ -90,8 +91,10 @@ impl<P, S> RetryAfterPolicy<P, S> {
             .copied()
     }
 
-    #[cfg_attr(not(coverage), tracing::instrument(skip(self), fields(task_id = ?task::try_id()), level = "trace"))]
+    #[cfg_attr(not(coverage), tracing::instrument(skip_all, fields(task_id = ?task::try_id()), level = "trace"))]
     pub(crate) fn set_retry_at(&self, retry_at: Option<SystemTime>) {
+        trace!(?retry_at);
+
         let task_id = task::try_id();
         match retry_at {
             Some(retry_at) => {
@@ -119,7 +122,6 @@ impl<P> RetryAfterPolicy<P, DefaultRetryableStrategy> {
     ///     ExponentialBackoff::builder().build_with_total_retry_duration(Duration::from_secs(30)),
     /// );
     /// ```
-    #[cfg_attr(not(coverage), tracing::instrument(skip_all, level = "trace"))]
     pub fn with_policy(inner_policy: P) -> Self {
         Self::with_policy_and_strategy(inner_policy, DefaultRetryableStrategy)
     }
@@ -137,7 +139,6 @@ impl<S> RetryAfterPolicy<ExponentialBackoff, S> {
     ///
     /// let policy = RetryAfterPolicy::with_max_retries_and_strategy(5, DefaultRetryableStrategy);
     /// ```
-    #[cfg_attr(not(coverage), tracing::instrument(skip(strategy), level = "trace"))]
     pub fn with_max_retries_and_strategy(max_retries: u32, strategy: S) -> Self {
         Self::with_policy_and_strategy(
             ExponentialBackoff::builder().build_with_max_retries(max_retries),
@@ -158,7 +159,6 @@ impl RetryAfterPolicy<ExponentialBackoff, DefaultRetryableStrategy> {
     ///
     /// let policy = RetryAfterPolicy::with_max_retries(5);
     /// ```
-    #[cfg_attr(not(coverage), tracing::instrument(level = "trace"))]
     pub fn with_max_retries(max_retries: u32) -> Self {
         Self::with_max_retries_and_strategy(max_retries, DefaultRetryableStrategy)
     }
@@ -169,7 +169,6 @@ where
     P: Default,
     S: Default,
 {
-    #[cfg_attr(not(coverage), tracing::instrument(level = "trace"))]
     fn default() -> Self {
         Self::with_policy_and_strategy(P::default(), S::default())
     }
@@ -185,22 +184,31 @@ impl<P, S> RetryableStrategy for RetryAfterPolicy<P, S>
 where
     S: RetryableStrategy,
 {
-    #[cfg_attr(not(coverage), tracing::instrument(skip(self)))]
+    #[cfg_attr(not(coverage), tracing::instrument(
+        skip_all,
+        fields(
+            url = res.as_ref().map(|r| r.url().to_string()).ok(),
+            status_code = res.as_ref().map(|r| r.status().to_string()).ok(),
+            err = ?res.as_ref().err(),
+        )
+    ))]
     fn handle(&self, res: &Result<Response, reqwest_middleware::Error>) -> Option<Retryable> {
+        info!(res_ok = res.is_ok());
+        trace!(?res);
+
         let retryable = self.0.inner_strategy.handle(res);
 
-        if let Some(Retryable::Transient) = retryable
+        if retryable == Some(Retryable::Transient)
             && let Ok(response) = res
-            && let Some(retry_after) = response.headers().get(RETRY_AFTER)
-            && let Ok(retry_after) = retry_after.to_str()
+            && let Some(retry_after) = RetryAfterHeaderValue::from_response(response)
+            && let Some(sleep_time) = retry_after.into_sleep_time(response)
         {
-            debug!(retry_after_header = retry_after);
+            let retry_at = SystemTime::now().checked_add(sleep_time);
 
-            let retry_after = parse_retry_after(retry_after);
-            debug!(parsed_retry_after_header = ?retry_after);
-
-            self.set_retry_at(retry_after);
+            debug!(retry_after_header = ?retry_after, retry_sleep_time = ?sleep_time, ?retry_at);
+            self.set_retry_at(retry_at);
         } else {
+            debug!(retry_at = ?None::<SystemTime>);
             self.set_retry_at(None);
         }
 
@@ -213,22 +221,28 @@ impl<P, S> RetryPolicy for RetryAfterPolicy<P, S>
 where
     P: RetryPolicy,
 {
-    #[cfg_attr(not(coverage), tracing::instrument(skip(self), ret))]
+    #[cfg_attr(not(coverage), tracing::instrument(skip_all, ret))]
     fn should_retry(
         &self,
         request_start_time: std::time::SystemTime,
         n_past_retries: u32,
     ) -> RetryDecision {
+        info!(?request_start_time, n_past_retries);
+
         let decision = self
             .0
             .inner_policy
             .should_retry(request_start_time, n_past_retries);
-        debug!(?decision);
+        debug!(inner_decision = ?decision);
 
-        if let RetryDecision::Retry { execute_after: _ } = decision
+        if let RetryDecision::Retry { execute_after } = decision
             && let Some(retry_at) = self.get_retry_at()
         {
-            debug!(?retry_at);
+            debug!(
+                inner_execute_after = ?execute_after,
+                overriden_execute_after = ?retry_at,
+                "overriding execute_after"
+            );
 
             #[allow(clippy::useless_conversion)]
             RetryDecision::Retry { execute_after: retry_at.into() }
@@ -245,13 +259,14 @@ mod tests {
     use std::time::Duration;
 
     use anyhow::anyhow;
-    use http::StatusCode;
     use reqwest_retry::Jitter;
     use rstest::rstest;
     use tokio::task::spawn_blocking;
     use tracing_test::traced_test;
 
     use super::*;
+    use crate::http::StatusCode;
+    use crate::http::header::RETRY_AFTER;
 
     mod retry_after_policy {
         use super::*;
@@ -269,70 +284,56 @@ mod tests {
             }
         }
 
-        async fn test_policy<P, S>(policy: RetryAfterPolicy<P, S>)
+        #[rstest]
+        #[case::with_policy_and_strategy(
+            RetryAfterPolicy::with_policy_and_strategy(
+                ExponentialBackoff::builder().build_with_max_retries(5),
+                DefaultRetryableStrategy,
+            )
+        )]
+        #[case::with_policy(
+            RetryAfterPolicy::with_policy(
+                ExponentialBackoff::builder().build_with_max_retries(5),
+            )
+        )]
+        #[case::with_max_retries_and_strategy(RetryAfterPolicy::with_max_retries_and_strategy(
+            5,
+            DefaultRetryableStrategy
+        ))]
+        #[case::with_max_retries(RetryAfterPolicy::with_max_retries(5))]
+        #[case::default(
+            RetryAfterPolicy::<UselessPolicy, UselessPolicy>::default()
+        )]
+        #[tokio::test]
+        #[traced_test]
+        async fn with<P, S>(#[case] policy: RetryAfterPolicy<P, S>)
         where
             P: 'static,
             S: 'static,
             RetryAfterPolicy<P, S>: Clone + Send + Sync,
         {
-            policy.set_retry_at(Some(SystemTime::now()));
+            let retry_at = SystemTime::now();
+            policy.set_retry_at(Some(retry_at));
             let actual = policy.get_retry_at();
-            assert_eq!(actual, Some(SystemTime::now()));
+            assert_eq!(actual, Some(retry_at));
 
             {
                 let policy = policy.clone();
                 spawn_blocking(|| async move {
-                    policy.set_retry_at(Some(SystemTime::now()));
+                    let retry_at = SystemTime::now() + Duration::from_secs(7);
+                    policy.set_retry_at(Some(retry_at));
                     let actual = policy.get_retry_at();
-                    assert_eq!(actual, Some(SystemTime::now()));
+                    assert_eq!(actual, Some(retry_at));
                 });
             }
+
+            let actual = policy.get_retry_at();
+            assert_eq!(actual, Some(retry_at));
 
             spawn_blocking(|| async move {
                 let actual = policy.get_retry_at();
                 assert!(actual.is_none());
             });
-        }
-
-        #[tokio::test]
-        #[traced_test]
-        async fn with_policy_and_strategy() {
-            let policy = RetryAfterPolicy::with_policy_and_strategy(
-                ExponentialBackoff::builder().build_with_max_retries(5),
-                DefaultRetryableStrategy,
-            );
-            test_policy(policy).await;
-        }
-
-        #[tokio::test]
-        #[traced_test]
-        async fn with_policy() {
-            let policy = RetryAfterPolicy::with_policy(
-                ExponentialBackoff::builder().build_with_max_retries(5),
-            );
-            test_policy(policy).await;
-        }
-
-        #[tokio::test]
-        #[traced_test]
-        async fn with_max_retries_and_strategy() {
-            let policy =
-                RetryAfterPolicy::with_max_retries_and_strategy(5, DefaultRetryableStrategy);
-            test_policy(policy).await;
-        }
-
-        #[tokio::test]
-        #[traced_test]
-        async fn with_max_retries() {
-            let policy = RetryAfterPolicy::with_max_retries(5);
-            test_policy(policy).await;
-        }
-
-        #[tokio::test]
-        #[traced_test]
-        async fn default() {
-            let policy: RetryAfterPolicy<UselessPolicy, UselessPolicy> = <_>::default();
-            test_policy(policy).await;
         }
 
         mod impl_retryable_strategy_and_retry_policy {

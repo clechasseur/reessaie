@@ -42,8 +42,9 @@
 #![deny(rustdoc::private_intra_doc_links)]
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
-mod middleware;
-mod policy;
+pub mod header;
+pub mod middleware;
+pub mod policy;
 
 pub use http;
 pub use middleware::RetryAfterMiddleware;
