@@ -32,7 +32,7 @@ check-cfg = [ "cfg(tarpaulin)", "cfg(tarpaulin_include)", "cfg(coverage)", "cfg(
 async-trait = "0.1.92"
 chrono = "0.4.45"
 http = "1.5.0"
-reqwest = "0.13.4"
+reqwest = "0.13.5"
 reqwest-middleware = "0.5.2"
 reqwest-retry = "0.9.1"
 tokio = { version = "1.53.1", features = ["rt"] }
@@ -42,7 +42,7 @@ tracing = "0.1.44"
 anyhow = "1.0.104"
 assert_matches = "1.5.0"
 mock_instant = "0.6.1"
-rstest = "0.26.1"
+rstest = "0.27.0"
 tokio = { version = "1.53.1", features = ["macros"] }
 tracing-test = "0.2.6"
 wiremock = "0.6.5"
