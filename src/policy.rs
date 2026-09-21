@@ -19,19 +19,20 @@ use crate::reqwest_retry::{
     DefaultRetryableStrategy, RetryDecision, RetryPolicy, Retryable, RetryableStrategy,
 };
 
-/// [`RetryPolicy`] that checks for the [`Retry-After`] HTTP header and uses its value to
-/// determine the time between retries.
+/// [`RetryPolicy`] that checks for HTTP headers indicating when to retry a request and uses
+/// their values to determine the time between retries.
 ///
 /// # Goal
 ///
 /// This retry policy is designed to be used with the helpers from the [`reqwest_retry`] crate. When
-/// a request needs to be retried, this policy will look for a [`Retry-After`] HTTP header in the
-/// response and if found, will use that value to determine when to retry.
+/// a request needs to be retried, this policy will look for an HTTP header indicating when to retry
+/// in the response and if found, will use its value. Such headers include the standard
+/// [`RETRY_AFTER`] as well as [`X_RATELIMIT_RESET`].
 ///
 /// Because of the way that [`RetryTransientMiddleware`] is designed, this policy implements _both_
 /// [`RetryPolicy`] and [`RetryableStrategy`]. The decision on whether to retry a request, or how
 /// many times to do so, is delegated to another combo of [`RetryPolicy`] / [`RetryableStrategy`].
-/// The only thing this policy changes is that _if_ a request is retried _and_ a valid [`Retry-After`]
+/// The only thing this policy changes is that _if_ a request is retried _and_ a valid retry-after
 /// HTTP header is present in the response, _then_ the value of that header is used to determine
 /// how long to wait before retrying; otherwise, the wait time determined by the inner policy is used.
 ///
@@ -48,9 +49,10 @@ use crate::reqwest_retry::{
 /// using the [`tokio`] runtime (through [`try_id`]).
 ///
 /// This policy can still be used outside a Tokio task, but if more than one request are performed
-/// concurrently outside Tokio tasks, their `Retry-After` header values might get mixed up.
+/// concurrently outside Tokio tasks, their retry-after header values might get mixed up.
 ///
-/// [`Retry-After`]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Retry-After
+/// [`RETRY_AFTER`]: crate::http::header::RETRY_AFTER
+/// [`X_RATELIMIT_RESET`]: crate::header::X_RATELIMIT_RESET
 /// [`RetryTransientMiddleware`]: reqwest_retry::RetryTransientMiddleware
 /// [`RetryAfterMiddleware`]: crate::RetryAfterMiddleware
 /// [`try_id`]: task::try_id

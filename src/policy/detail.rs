@@ -27,7 +27,7 @@ impl<P, S> RetryAfterPolicyInner<P, S> {
 ///
 /// This is required because [`Retryable`] implements neither `Debug` nor `Display`.
 #[cfg_attr(coverage_nightly, coverage(off))]
-pub fn retryable_str(retryable: &Retryable) -> &'static str {
+pub const fn retryable_str(retryable: &Retryable) -> &'static str {
     match retryable {
         Retryable::Transient => "Retryable::Transient",
         Retryable::Fatal => "Retryable::Fatal",

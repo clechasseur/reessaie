@@ -57,14 +57,13 @@ impl RetryAfterHeaderValue {
     ///
     /// - [`Retry-After`]
     /// - [`X-RateLimit-Reset`]
-    /// - [`X-RateLimit-Reset`] (an alternate spelling of the previous one)
+    /// - `X-Rate-Limit-Reset` (an alternate spelling of the previous one)
     ///
     /// If one of those headers is found, and it contains data indicating when the client should
-    /// retry a request, that information is returned in the form of a [`RetryAfterHeaderValue`](Self).
+    /// retry a request, that information is returned in the form of a [`RetryAfterHeaderValue`].
     /// Returns `None` otherwise.
     ///
     /// [`Retry-After`]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Retry-After
-    /// [`X-RateLimit-Reset`]: https://http.dev/x-ratelimit-reset
     /// [`X-RateLimit-Reset`]: https://http.dev/x-ratelimit-reset
     pub fn from_response(response: &Response) -> Option<Self> {
         let headers = response.headers();
