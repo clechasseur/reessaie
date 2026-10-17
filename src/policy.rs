@@ -259,7 +259,6 @@ mod tests {
     use std::time::Duration;
 
     use anyhow::anyhow;
-    use reqwest_retry::Jitter;
     use rstest::rstest;
     use tokio::task::spawn_blocking;
     use tracing_test::traced_test;
@@ -267,6 +266,7 @@ mod tests {
     use super::*;
     use crate::http::StatusCode;
     use crate::http::header::RETRY_AFTER;
+    use crate::reqwest_retry::Jitter;
 
     mod retry_after_policy {
         use super::*;
