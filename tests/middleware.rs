@@ -4,11 +4,11 @@ mod retry_after_middleware {
 
     use assert_matches::assert_matches;
     use http::{Method, StatusCode};
+    use reessaie::reqwest::Client;
+    use reessaie::reqwest_middleware::ClientBuilder;
+    use reessaie::reqwest_retry::Jitter;
+    use reessaie::reqwest_retry::policies::ExponentialBackoff;
     use reessaie::{RetryAfterMiddleware, RetryAfterPolicy};
-    use reqwest::Client;
-    use reqwest_middleware::ClientBuilder;
-    use reqwest_retry::Jitter;
-    use reqwest_retry::policies::ExponentialBackoff;
     use rstest::rstest;
     use tracing_test::traced_test;
     use wiremock::matchers::{method, path};
